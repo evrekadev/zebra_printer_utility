@@ -23,5 +23,3 @@ flutter:
       android:
         package: com.rubdev.zebrautil
         pluginClass: ZebraUtilPlugin
-      ios:
-        pluginClass: ZebraUtilPlugin
