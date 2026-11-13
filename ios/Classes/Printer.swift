@@ -6,7 +6,10 @@
 //
 
 import Foundation
+import Flutter
 
+#if !targetEnvironment(simulator)
+import ExternalAccessory
 
 class Printer{
 
@@ -26,7 +29,6 @@ class Printer{
     var selectedIPAddress: String? = nil
     var selectedMacAddress: String? = nil
     var isZebraPrinter :Bool = true
-    var wifiManager: POSWIFIManager?
     var isConnecting :Bool = false
     
     static func getInstance(binaryMessenger : FlutterBinaryMessenger) -> Printer {
@@ -92,24 +94,6 @@ class Printer{
         return String(UInt(bitPattern: ObjectIdentifier(self)))
     }
     
-    func connectToGenericPrinter(address: String) {
-        self.isZebraPrinter = false
-           setStatus(message: connectingStr, color:connectingColor)
-        if self.wifiManager != nil{
-            self.wifiManager?.posDisConnect()
-                 setStatus(message: disconnectedStr, color: disconnectedColor)
-                 setStatus(message: connectingStr, color: connectingColor)
-        }
-        self.wifiManager = POSWIFIManager()
-        self.wifiManager?.posConnect(withHost: address, port: 9100, completion: { (result) in
-            if result == true {
-                self.setStatus(message: self.connectedStr, color: self.connectedColor)
-            } else {
-                self.setStatus(message: self.disconnectedStr, color: self.disconnectedColor)
-            }
-        })  
-    }
-    
     func connectToSelectPrinter(address: String) -> Bool{
         if(self.isConnecting == false) {
             self.isConnecting = true
@@ -147,7 +131,6 @@ class Printer{
     }
 
     func isPrinterConnect() -> String{
-        if self.isZebraPrinter == true {
         if self.connection?.isConnected() == true {
             setStatus(message: connectedStr, color: connectedColor)
               return connectedStr
@@ -156,15 +139,6 @@ class Printer{
             setStatus(message: disconnectedStr, color: disconnectedColor)
               return disconnectedStr
         }
-        } else {
-            if(self.wifiManager?.connectOK == true){
-                setStatus(message: connectedStr, color: connectedColor)
-                return connectedStr
-            } else {
-                setStatus(message: disconnectedStr, color: disconnectedColor)
-                        return disconnectedStr
-            }
-        }
     }
 
     func setSettings(settings: NSString){
@@ -172,19 +146,11 @@ class Printer{
     }
 
     func disconnect() {
-        if self.isZebraPrinter == true {
-            setStatus(message: disconnectingStr, color: connectingColor)
-            if self.connection != nil {
-                self.connection?.close()
-            }
-            setStatus(message: disconnectedStr, color: disconnectedColor)
-        } else {
-               setStatus(message: disconnectingStr, color: connectingColor)
-            if self.wifiManager != nil{
-                self.wifiManager?.posDisConnect()
-            }
-           setStatus(message: disconnectedStr, color: disconnectedColor)
+        setStatus(message: disconnectingStr, color: connectingColor)
+        if self.connection != nil {
+            self.connection?.close()
         }
+        setStatus(message: disconnectedStr, color: disconnectedColor)
     }
 
    func printData(data: NSString) {
@@ -194,18 +160,12 @@ class Printer{
       DispatchQueue.main.async {
         self.setStatus(message: "Sending Data", color: self.connectingColor)
              }
-        if self.isZebraPrinter == true {
-              var error: NSError?
-              let result = self.connection?.write(dataBytes, error: &error)
-              if result == -1, let error = error {
-                print(error)
-                self.disconnect()
-                return
-              }
-        } else {
-            self.wifiManager?.posWriteCommand(with: dataBytes, withResponse: { (result) in
-                
-            })
+        var error: NSError?
+        let result = self.connection?.write(dataBytes, error: &error)
+        if result == -1, let error = error {
+          print(error)
+          self.disconnect()
+          return
         }
       sleep(1)
         DispatchQueue.main.async {
@@ -224,3 +184,26 @@ class Printer{
     }
 
 }
+
+#else
+
+// Simulator stub: libZSDK_API.a has no arm64 simulator slice, so nothing here touches the Zebra SDK.
+// It answers every call with success and never finds or connects to a printer.
+class Printer {
+    var methodChannel: FlutterMethodChannel?
+
+    static func getInstance(binaryMessenger: FlutterBinaryMessenger) -> Printer {
+        let printer = Printer()
+        printer.methodChannel = FlutterMethodChannel(name: "ZebraPrinterObject" + printer.toString(), binaryMessenger: binaryMessenger)
+        printer.methodChannel?.setMethodCallHandler({ call, result in
+            result(call.method == "checkPermission" ? true : nil)
+        })
+        return printer
+    }
+
+    func toString() -> String {
+        return String(UInt(bitPattern: ObjectIdentifier(self)))
+    }
+}
+
+#endif
