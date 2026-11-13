@@ -9,3 +9,5 @@ example/android
 example/ios
 example/test
 
+# FVM Version Cache
+.fvm/
