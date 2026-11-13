@@ -19,12 +19,11 @@ public class SwiftZebraUtilPlugin: NSObject, FlutterPlugin {
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
 
     if(call.method == "getInstance"){
-        var printer = Printer.getInstance(binaryMessenger: self.binaryMessenger!)
+        let printer = Printer.getInstance(binaryMessenger: self.binaryMessenger!)
         printers.append(printer)
         result(printer.toString())
-        
-        
+    } else {
+        result(FlutterMethodNotImplemented)
     }
-   
   }
 }
