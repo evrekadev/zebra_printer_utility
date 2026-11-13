@@ -172,6 +172,8 @@ class Printer {
     }
 
     private func observeDisconnect() {
+        // A remembered printer is connected without a scan; the notification is not delivered unregistered.
+        _ = Printer.registerAccessoryNotifications
         disconnectObserver = NotificationCenter.default.addObserver(
             forName: .EAAccessoryDidDisconnect, object: nil, queue: .main
         ) { [weak self] note in
