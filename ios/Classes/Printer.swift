@@ -251,13 +251,14 @@ class Printer {
     }
 
     // Any failure means "no model"; it never fails the connect.
+    // 3 s / 800 ms: a ZQ320 Plus answered nothing within 2 s / 500 ms on a real device (2026-11-16).
     private func readModel() -> String? {
         guard let connection = connection,
               let answer = try? SGD.get(
                   "device.product_name",
                   withPrinterConnection: connection,
-                  withMaxTimeoutForRead: 2000,
-                  andWithTimeToWaitForMoreData: 500
+                  withMaxTimeoutForRead: 3000,
+                  andWithTimeToWaitForMoreData: 800
               ) else { return nil }
         let model = answer.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"")))
         return model.isEmpty || model == "?" ? nil : model
