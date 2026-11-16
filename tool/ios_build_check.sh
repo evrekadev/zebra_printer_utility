@@ -44,6 +44,7 @@ fvm flutter build ios --no-codesign
 step "Checking the device build linked libZSDK_API.a"
 test -f ios/.symlinks/plugins/zebrautil/ios/libZSDK_API.a
 grep -qa MfiBtPrinterConnection build/ios/iphoneos/Runner.app/Runner
+grep -qa 'GET:withPrinterConnection' build/ios/iphoneos/Runner.app/Runner
 
 step "Checking the generated registrant registers ZebraUtilPlugin"
 registrant=ios/Runner/GeneratedPluginRegistrant.m

@@ -150,10 +150,15 @@ class Printer {
         queue.async {
             self.closeConnection()
             let isOpen = self.openConnection(serial: serial)
+            // The Bluetooth name may be the serial number; the model comes from the printer itself.
+            let model = isOpen ? self.readModel() : nil
             DispatchQueue.main.async {
                 if isOpen {
                     self.connectedSerial = serial
                     self.observeDisconnect()
+                    if let model = model {
+                        self.invoke("printerModel", ["Address": serial, "Model": model])
+                    }
                     self.setStatus(connectedStr, green)
                 } else {
                     self.setStatus(disconnectedStr, red)
@@ -244,12 +249,26 @@ class Printer {
         connection?.close()
         connection = nil
     }
+
+    // Any failure means "no model"; it never fails the connect.
+    private func readModel() -> String? {
+        guard let connection = connection,
+              let answer = try? SGD.get(
+                  "device.product_name",
+                  withPrinterConnection: connection,
+                  withMaxTimeoutForRead: 2000,
+                  andWithTimeToWaitForMoreData: 500
+              ) else { return nil }
+        let model = answer.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"")))
+        return model.isEmpty || model == "?" ? nil : model
+    }
     #else
     // The simulator has no printers: nothing opens, so print and connect end as "Disconnected".
     private func openConnection(serial: String) -> Bool { return false }
     private func hasConnection() -> Bool { return false }
     private func write(_ bytes: Data) -> Bool { return false }
     private func closeConnection() {}
+    private func readModel() -> String? { return nil }
     #endif
 
     // MARK: Channel (main thread only)
