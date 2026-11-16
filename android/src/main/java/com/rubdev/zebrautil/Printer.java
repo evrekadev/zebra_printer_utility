@@ -24,6 +24,7 @@ import com.zebra.sdk.comm.BluetoothConnection;
 import com.zebra.sdk.comm.Connection;
 import com.zebra.sdk.comm.ConnectionException;
 import com.zebra.sdk.comm.TcpConnection;
+import com.zebra.sdk.printer.SGD;
 import com.zebra.sdk.printer.ZebraPrinter;
 import com.zebra.sdk.printer.ZebraPrinterFactory;
 import com.zebra.sdk.printer.ZebraPrinterLanguageUnknownException;
@@ -421,10 +422,42 @@ public class Printer implements MethodChannel.MethodCallHandler {
             } catch (ConnectionException | ZebraPrinterLanguageUnknownException e) {
                 DemoSleeper.sleep(1000);
                 disconnect();
+                return null;
             }
+        }
+        if (printer == null || !printerConnection.isConnected()) {
+            setStatus(context.getString(R.string.disconnect), context.getString(R.string.disconnectColor));
+            return null;
+        }
+        sendPrinterModel(isBluetoothPrinter ? getMacAddress() : getTcpAddress());
+        // The query takes seconds; a connection that closed meanwhile is not a connected printer.
+        if (!printerConnection.isConnected()) {
+            setStatus(context.getString(R.string.disconnect), context.getString(R.string.disconnectColor));
+            return null;
         }
         setStatus(context.getString(R.string.connected), context.getString(R.string.connectedColor));
         return printer;
+    }
+
+    // Asks the printer for its model (the Bluetooth name may be just the serial number).
+    // Never fails the connect: any error or empty / "?" answer means no event is sent.
+    // 3 s / 800 ms: the same query got no answer from a ZQ320 Plus within 2 s / 500 ms on iOS.
+    private void sendPrinterModel(final String address) {
+        String model;
+        try {
+            model = SGD.GET("device.product_name", printerConnection, 3000, 800);
+        } catch (Exception e) {
+            return;
+        }
+        if (model == null) return;
+        final String trimmed = model.replaceAll("^[\\s\"]+|[\\s\"]+$", "");
+        if (trimmed.isEmpty() || trimmed.equals("?")) return;
+        ((Activity) context).runOnUiThread(() -> {
+            HashMap<String, Object> arguments = new HashMap<>();
+            arguments.put("Address", address);
+            arguments.put("Model", trimmed);
+            methodChannel.invokeMethod("printerModel", arguments);
+        });
     }
 
     private String getMacAddress() {
