@@ -175,6 +175,11 @@ class ZebraPrinter {
       final String status = methodCall.arguments["Status"];
       final String color = methodCall.arguments["Color"];
       controller.updatePrinterStatus(status, color);
+    } else if (methodCall.method == "printerModel") {
+      final String? address = methodCall.arguments["Address"];
+      final String? model = methodCall.arguments["Model"];
+      if (address == null || model == null || model.isEmpty) return;
+      controller.updatePrinterModel(address, model);
     } else if (methodCall.method == "onDiscoveryError" &&
         onDiscoveryError != null) {
       onDiscoveryError!(
@@ -208,13 +213,18 @@ class ZebraController extends ChangeNotifier {
   }
 
   void cleanAll() {
-    if(_printers.isEmpty) return;
+    if (_printers.isEmpty) return;
     _printers.removeWhere((element) => !element.isConnected);
   }
 
   void updatePrinterStatus(String status, String color) {
     if (selectedAddress != null) {
-      Color newColor = Colors.grey.withOpacity(0.6);
+      final int index =
+          _printers.indexWhere((element) => element.address == selectedAddress);
+      if (index == -1) return;
+      // withAlpha(153) equals withOpacity(0.6); withOpacity is deprecated and
+      // withValues is missing on older supported Flutter versions.
+      Color newColor = Colors.grey.withAlpha(153);
       switch (color) {
         case 'R':
           newColor = Colors.red;
@@ -222,18 +232,21 @@ class ZebraController extends ChangeNotifier {
         case 'G':
           newColor = Colors.green;
           break;
-        default:
-          newColor = Colors.grey.withOpacity(0.6);
-          break;
       }
-      final int index =
-          _printers.indexWhere((element) => element.address == selectedAddress);
       _printers[index] = _printers[index].copyWith(
           status: status,
           color: newColor,
           isConnected: printers[index].address == selectedAddress);
       notifyListeners();
     }
+  }
+
+  void updatePrinterModel(String address, String model) {
+    final int index =
+        _printers.indexWhere((element) => element.address == address);
+    if (index == -1) return;
+    _printers[index] = _printers[index].copyWith(model: model);
+    notifyListeners();
   }
 
   void synchronizePrinter(String connectedString) {

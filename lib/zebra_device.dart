@@ -20,6 +20,9 @@ class ZebraDevice {
   final Color color;
   final bool isConnected;
 
+  /// Model reported by the printer after connect, e.g. "ZQ320 Plus".
+  final String? model;
+
   ZebraDevice(
       {required this.address,
       required this.name,
@@ -27,8 +30,8 @@ class ZebraDevice {
       required this.status,
       this.isConnected = false,
       this.color = const Color.fromARGB(255, 255, 0, 0),
-      });
-      
+      this.model});
+
   factory ZebraDevice.empty() =>
       ZebraDevice(address: "", name: "", isWifi: false, status: '');
 
@@ -37,7 +40,7 @@ class ZebraDevice {
       name: json["name"],
       isWifi: json["isWifi"].toString() == "true",
       isConnected: json["isConnected"],
-      status: json["status"] ,
+      status: json["status"],
       color: json["color"]);
 
   Map<String, dynamic> toJson() => {
@@ -65,13 +68,15 @@ class ZebraDevice {
       bool? isWifi,
       String? status,
       bool? isConnected,
-      Color? color}) {
+      Color? color,
+      String? model}) {
     return ZebraDevice(
         address: ipAddress ?? this.address,
         name: name ?? this.name,
         isWifi: isWifi ?? this.isWifi,
         status: status ?? this.status,
         isConnected: isConnected ?? this.isConnected,
-        color: color ?? this.color);
+        color: color ?? this.color,
+        model: model ?? this.model);
   }
 }
