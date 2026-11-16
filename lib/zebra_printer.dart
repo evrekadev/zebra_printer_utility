@@ -202,7 +202,15 @@ class ZebraController extends ChangeNotifier {
   String? selectedAddress;
 
   void addPrinter(ZebraDevice printer) {
-    if (_printers.contains(printer)) return;
+    final index = _printers.indexOf(printer);
+    if (index != -1) {
+      // A printer connected without a scan is listed with no name: a later scan fills it in.
+      if (_printers[index].name.isEmpty && printer.name.isNotEmpty) {
+        _printers[index] = _printers[index].copyWith(name: printer.name);
+        notifyListeners();
+      }
+      return;
+    }
     _printers.add(printer);
     notifyListeners();
   }
