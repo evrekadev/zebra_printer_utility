@@ -6,6 +6,24 @@ enum EnumMediaType { Label, BlackMark, Journal }
 
 enum Command { calibrate, mediaType, darkness }
 
+/// Why the connected printer cannot print now, as it reports it (Link-OS `PrinterStatus`).
+enum PrinterProblem {
+  paperOut,
+  headOpen;
+
+  /// The native side answers `paperOut`, `headOpen`, `ready` or nothing; only the first two are problems.
+  static PrinterProblem? fromWire(String? value) {
+    switch (value) {
+      case 'paperOut':
+        return PrinterProblem.paperOut;
+      case 'headOpen':
+        return PrinterProblem.headOpen;
+      default:
+        return null;
+    }
+  }
+}
+
 class ZebraPrinter {
   late MethodChannel channel;
 
@@ -139,6 +157,23 @@ class ZebraPrinter {
 
   Future<void> disconnect() async {
     await channel.invokeMethod("disconnect", null);
+  }
+
+  /// What stands in the way of a print on the connected printer: [PrinterProblem.paperOut],
+  /// [PrinterProblem.headOpen], or `null` when it is ready — and also when it could not be asked (no
+  /// connection, no answer within [timeout], a platform without the query), so a caller prints as before.
+  Future<PrinterProblem?> printerProblem(
+      {Duration timeout = const Duration(seconds: 8)}) async {
+    try {
+      final answer = await channel
+          .invokeMethod<String>("printerStatus")
+          .timeout(timeout, onTimeout: () => null);
+      return PrinterProblem.fromWire(answer);
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
   }
 
   void calibratePrinter() {

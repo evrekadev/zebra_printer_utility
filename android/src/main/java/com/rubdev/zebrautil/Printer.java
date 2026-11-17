@@ -24,6 +24,7 @@ import com.zebra.sdk.comm.BluetoothConnection;
 import com.zebra.sdk.comm.Connection;
 import com.zebra.sdk.comm.ConnectionException;
 import com.zebra.sdk.comm.TcpConnection;
+import com.zebra.sdk.printer.PrinterStatus;
 import com.zebra.sdk.printer.SGD;
 import com.zebra.sdk.printer.ZebraPrinter;
 import com.zebra.sdk.printer.ZebraPrinterFactory;
@@ -460,6 +461,23 @@ public class Printer implements MethodChannel.MethodCallHandler {
         });
     }
 
+    // "paperOut", "headOpen", "ready", or null when the printer could not be asked (not connected, a
+    // generic printer, no answer). Never throws: an unknown status must not stop a print.
+    private String readStatus() {
+        final ZebraPrinter current = printer;
+        if (!isZebraPrinter || current == null || printerConnection == null || !printerConnection.isConnected()) {
+            return null;
+        }
+        try {
+            final PrinterStatus status = current.getCurrentStatus();
+            if (status.isHeadOpen) return "headOpen";
+            if (status.isPaperOut) return "paperOut";
+            return "ready";
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private String getMacAddress() {
         return macAddress;
     }
@@ -596,6 +614,11 @@ public class Printer implements MethodChannel.MethodCallHandler {
             new Thread(() -> {
                 disconnect();
                 result.success(true);
+            }).start();
+        } else if (call.method.equals("printerStatus")) {
+            new Thread(() -> {
+                final String status = readStatus();
+                ((Activity) context).runOnUiThread(() -> result.success(status));
             }).start();
         } else if (call.method.equals("isPrinterConnected")) {
             result.success(isPrinterConnect());

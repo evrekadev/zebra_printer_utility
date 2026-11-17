@@ -91,6 +91,8 @@ class Printer {
         case "print":
             result(nil)
             if let text = args?["Data"] as? String { printData(text) }
+        case "printerStatus":
+            printerStatus(result: result)
         case "getLocateValue":
             result(androidStrings[args?["ResourceKey"] as? String ?? ""] ?? "")
         default:
@@ -225,6 +227,14 @@ class Printer {
         }
     }
 
+    // "paperOut", "headOpen", "ready", or nil when the printer could not be asked.
+    private func printerStatus(result: @escaping FlutterResult) {
+        queue.async {
+            let status = self.readStatus()
+            DispatchQueue.main.async { result(status) }
+        }
+    }
+
     // MARK: Zebra SDK (on `queue` only). libZSDK_API.a has no arm64 simulator slice.
 
     #if !targetEnvironment(simulator)
@@ -250,6 +260,21 @@ class Printer {
         connection = nil
     }
 
+    // Any failure means "unknown" (nil); it never fails a print.
+    // The printer object is made for ZPL outright: the jobs are ZPL, and the factory's own language query
+    // would cost a round trip per job and switch a line-mode printer over.
+    // 3 s / 800 ms: the read limits the model query needed on a ZQ320 Plus (see readModel).
+    private func readStatus() -> String? {
+        guard let connection = connection else { return nil }
+        connection.setMaxTimeoutForRead(3000)
+        connection.setTimeToWaitForMoreData(800)
+        guard let printer = ZebraPrinterFactory.getInstance(connection, with: PRINTER_LANGUAGE_ZPL),
+              let status = try? printer.getCurrentStatus() else { return nil }
+        if status.isHeadOpen { return "headOpen" }
+        if status.isPaperOut { return "paperOut" }
+        return "ready"
+    }
+
     // Any failure means "no model"; it never fails the connect.
     // 3 s / 800 ms: a ZQ320 Plus answered nothing within 2 s / 500 ms on a real device (2026-11-16).
     private func readModel() -> String? {
@@ -270,6 +295,7 @@ class Printer {
     private func write(_ bytes: Data) -> Bool { return false }
     private func closeConnection() {}
     private func readModel() -> String? { return nil }
+    private func readStatus() -> String? { return nil }
     #endif
 
     // MARK: Channel (main thread only)
